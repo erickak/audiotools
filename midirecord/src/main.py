@@ -31,17 +31,40 @@ def get_cmd_args():
         description='record midi data from given input to given file')
 
     parser.add_argument('-i', '--input')
-    parser.add_argument('-f', '--file', required=True)
+    parser.add_argument('-f', '--file')
 
     return parser.parse_args()
 
-def read_input(midi_in):
+def get_msg_handler(appendable, print_msgs):
+    def full(x):
+        appendable.append(x)
+        print(x)
+
+    def append_only(x):
+        appendable.append(x)
+
+    def print_only(x):
+        print(x)
+
+    if appendable:
+        if print_msgs:
+            return full
+        else:
+            return append_only
+    else:
+        if print_msgs:
+            return print_only
+        else:
+            return lambda *args: None
+
+def accumulate_input(midi_in, appendable=None, print_msgs=True):
+    handler = get_msg_handler(appendable, print_msgs)
     try:
         with mido.open_input(midi_in) as inport:
             for msg in inport:
-                print(msg)
+                handler(msg)
     except KeyboardInterrupt:
-        print()
+        print() # Just so the ^C ends up on a separate line from prompt on exit
         pass
 
 
@@ -54,4 +77,4 @@ if __name__ == '__main__':
         midi_in = get_midi_in()
 
     print('Recording from "%s"' % midi_in)
-    read_input(midi_in)
+    accumulate_input(midi_in, filename)

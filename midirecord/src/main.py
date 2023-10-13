@@ -46,16 +46,16 @@ def get_msg_handler(appendable, print_msgs):
     def print_only(x):
         print(x)
 
-    if appendable:
-        if print_msgs:
-            return full
-        else:
-            return append_only
-    else:
+    if appendable is None:
         if print_msgs:
             return print_only
         else:
             return lambda *args: None
+    else:
+        if print_msgs:
+            return full
+        else:
+            return append_only
 
 def accumulate_input(midi_in, appendable=None, print_msgs=True):
     handler = get_msg_handler(appendable, print_msgs)
@@ -77,4 +77,12 @@ if __name__ == '__main__':
         midi_in = get_midi_in()
 
     print('Recording from "%s"' % midi_in)
-    accumulate_input(midi_in, filename)
+
+    if filename:
+        mid = mido.MidiFile(type=0)
+        track = mido.MidiTrack()
+        mid.tracks.append(track)
+        accumulate_input(midi_in, appendable=track)
+        mid.save(filename)
+    else:
+        accumulate_input(midi_in)

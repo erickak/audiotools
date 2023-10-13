@@ -5,12 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "rmidi",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "src/main.py",
             "console": "integratedTerminal",
-            "args": ["-f", "testfile"],
+            "args": ["-f", "build/test.mid"],
             "justMyCode": true
         }
     ]

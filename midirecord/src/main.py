@@ -2,6 +2,7 @@
 
 import argparse
 import mido
+from timeit import default_timer as timer
 
 DEFAULT_INPUT = 'KeyLab mkII 61:KeyLab mkII 61 MIDI'
 
@@ -30,39 +31,49 @@ def get_cmd_args():
         prog='rmidi',
         description='record midi data from given input to given file')
 
+    parser.add_argument('-b', '--bpm', default=120)
     parser.add_argument('-i', '--input')
     parser.add_argument('-f', '--file')
+    parser.add_argument('-v', '--verbose', action='store_true')
 
     return parser.parse_args()
 
-def get_msg_handler(appendable, print_msgs):
-    def full(x):
+def get_msg_handler(appendable, ticks_per_second, print_msgs):
+    def full(x, t):
+        x.time = round(ticks_per_second * t)
         appendable.append(x)
         print(x)
 
-    def append_only(x):
+    def append_only(x, t):
         appendable.append(x)
 
-    def print_only(x):
-        print(x)
+    if print_msgs:
+        return full
 
-    if appendable is None:
-        if print_msgs:
-            return print_only
-        else:
-            return lambda *args: None
-    else:
-        if print_msgs:
-            return full
-        else:
-            return append_only
+    return append_only
 
-def accumulate_input(midi_in, appendable=None, print_msgs=True):
-    handler = get_msg_handler(appendable, print_msgs)
+def print_input(midi_in):
     try:
         with mido.open_input(midi_in) as inport:
             for msg in inport:
-                handler(msg)
+                print(msg)
+    except KeyboardInterrupt:
+        print() # Just so the ^C ends up on a separate line from prompt on exit
+        pass
+
+def accumulate_input(midi_in, appendable, ticks_per_second, print_msgs=True):
+    handler = get_msg_handler(appendable, ticks_per_second, print_msgs)
+    last_time = timer()
+
+    try:
+        with mido.open_input(midi_in) as inport:
+            for msg in inport:
+
+                end = timer()
+                seconds = end - last_time
+                last_time = end
+
+                handler(msg, seconds)
     except KeyboardInterrupt:
         print() # Just so the ^C ends up on a separate line from prompt on exit
         pass
@@ -72,6 +83,8 @@ if __name__ == '__main__':
     args = get_cmd_args()
     midi_in = args.input
     filename = args.file
+    bpm = args.bpm
+    print_msgs = args.verbose
 
     if not midi_in:
         midi_in = get_midi_in()
@@ -82,7 +95,13 @@ if __name__ == '__main__':
         mid = mido.MidiFile(type=0)
         track = mido.MidiTrack()
         mid.tracks.append(track)
-        accumulate_input(midi_in, appendable=track)
+
+        ticks_per_second = bpm * mid.ticks_per_beat / 60
+
+        accumulate_input(midi_in, track, ticks_per_second, print_msgs)
         mid.save(filename)
+
+        print('MIDI data written to %s', filename)
     else:
-        accumulate_input(midi_in)
+        if print_msgs:
+            print_input(midi_in)

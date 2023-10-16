@@ -4,20 +4,19 @@ import argparse
 import mido
 from timeit import default_timer as timer
 
-
+PROG_NAME = 'rmidi'
+PROG_DESCRIP = 'record midi data from given input to given file'
 DEFAULT_INPUT = 'KeyLab mkII 61:KeyLab mkII 61 MIDI'
+DEFAULT_BPM = 120
+SECONDS_PER_MIN = 60
 
 
 def get_cmd_args():
-    parser = argparse.ArgumentParser(
-        prog='rmidi',
-        description='record midi data from given input to given file')
-
-    parser.add_argument('-b', '--bpm', default=120)
+    parser = argparse.ArgumentParser(prog=PROG_NAME, description=PROG_DESCRIP)
+    parser.add_argument('-b', '--bpm', default=DEFAULT_BPM)
     parser.add_argument('-i', '--input')
     parser.add_argument('-f', '--file')
     parser.add_argument('-v', '--verbose', action='store_true')
-
     return parser.parse_args()
 
 def get_midi_in():
@@ -78,6 +77,18 @@ def process_msgs(handler, ticks_per_second=0):
             print() # Just so the "^C" ends up on a separate line from prompt on exit
         pass
 
+def record_to_file(midi_in, filename, bpm, print_msgs):
+    mid = mido.MidiFile(type=0)
+    track = mido.MidiTrack()
+    mid.tracks.append(track)
+
+    ticks_per_second = bpm * mid.ticks_per_beat / SECONDS_PER_MIN
+
+    accumulate_input(midi_in, track, ticks_per_second, print_msgs)
+    mid.save(filename)
+
+    print('MIDI data written to', filename)
+
 
 if __name__ == '__main__':
     args = get_cmd_args()
@@ -89,19 +100,9 @@ if __name__ == '__main__':
     if not midi_in:
         midi_in = get_midi_in()
 
-    print('Recording from "%s"' % midi_in)
+    print('Receiving from "%s"' % midi_in)
 
     if filename:
-        mid = mido.MidiFile(type=0)
-        track = mido.MidiTrack()
-        mid.tracks.append(track)
-
-        ticks_per_second = bpm * mid.ticks_per_beat / 60
-
-        accumulate_input(midi_in, track, ticks_per_second, print_msgs)
-        mid.save(filename)
-
-        print('MIDI data written to', filename)
-    else:
-        if print_msgs:
-            print_input(midi_in)
+        record_to_file(midi_in, filename, bpm, print_msgs)
+    elif print_msgs:
+        print_input(midi_in)

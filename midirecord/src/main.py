@@ -16,6 +16,7 @@ def get_cmd_args():
     parser.add_argument('-b', '--bpm', default=DEFAULT_BPM)
     parser.add_argument('-i', '--input')
     parser.add_argument('-f', '--file')
+    parser.add_argument('-s', '--silence', action='store_true')
     parser.add_argument('-v', '--verbose', action='store_true')
     return parser.parse_args()
 
@@ -77,7 +78,7 @@ def process_msgs(handler, ticks_per_second=0):
             print() # Just so the "^C" ends up on a separate line from prompt on exit
         pass
 
-def record_to_file(midi_in, filename, bpm, print_msgs):
+def record_to_file(midi_in, filename, bpm, print_msgs, trim_init_silence):
     mid = mido.MidiFile(type=0)
     track = mido.MidiTrack()
     mid.tracks.append(track)
@@ -85,6 +86,10 @@ def record_to_file(midi_in, filename, bpm, print_msgs):
     ticks_per_second = bpm * mid.ticks_per_beat / SECONDS_PER_MIN
 
     accumulate_input(midi_in, track, ticks_per_second, print_msgs)
+
+    if trim_init_silence:
+        track[0].time = 0
+
     mid.save(filename)
 
     print('MIDI data written to', filename)
@@ -96,6 +101,7 @@ if __name__ == '__main__':
     filename = args.file
     bpm = args.bpm
     print_msgs = args.verbose
+    trim_init_silence = not args.silence
 
     if not midi_in:
         midi_in = get_midi_in()
@@ -103,6 +109,6 @@ if __name__ == '__main__':
     print('Receiving from "%s"' % midi_in)
 
     if filename:
-        record_to_file(midi_in, filename, bpm, print_msgs)
+        record_to_file(midi_in, filename, bpm, print_msgs, trim_init_silence)
     elif print_msgs:
         print_input(midi_in)

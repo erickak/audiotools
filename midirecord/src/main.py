@@ -4,7 +4,21 @@ import argparse
 import mido
 from timeit import default_timer as timer
 
+
 DEFAULT_INPUT = 'KeyLab mkII 61:KeyLab mkII 61 MIDI'
+
+
+def get_cmd_args():
+    parser = argparse.ArgumentParser(
+        prog='rmidi',
+        description='record midi data from given input to given file')
+
+    parser.add_argument('-b', '--bpm', default=120)
+    parser.add_argument('-i', '--input')
+    parser.add_argument('-f', '--file')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    return parser.parse_args()
 
 def get_midi_in():
     inputs = mido.get_input_names()
@@ -26,25 +40,12 @@ def get_midi_in():
 
     return inputs[entry]
 
-def get_cmd_args():
-    parser = argparse.ArgumentParser(
-        prog='rmidi',
-        description='record midi data from given input to given file')
-
-    parser.add_argument('-b', '--bpm', default=120)
-    parser.add_argument('-i', '--input')
-    parser.add_argument('-f', '--file')
-    parser.add_argument('-v', '--verbose', action='store_true')
-
-    return parser.parse_args()
-
-def get_msg_handler(appendable, ticks_per_second, print_msgs):
-    def full(x, t):
-        x.time = round(ticks_per_second * t)
+def get_appending_handler(appendable, ticks_per_second, print_msgs):
+    def full(x):
         appendable.append(x)
         print(x)
 
-    def append_only(x, t):
+    def append_only(x):
         appendable.append(x)
 
     if print_msgs:
@@ -53,16 +54,13 @@ def get_msg_handler(appendable, ticks_per_second, print_msgs):
     return append_only
 
 def print_input(midi_in):
-    try:
-        with mido.open_input(midi_in) as inport:
-            for msg in inport:
-                print(msg)
-    except KeyboardInterrupt:
-        print() # Just so the ^C ends up on a separate line from prompt on exit
-        pass
+    process_msgs(lambda x: print(x))
 
 def accumulate_input(midi_in, appendable, ticks_per_second, print_msgs=True):
-    handler = get_msg_handler(appendable, ticks_per_second, print_msgs)
+    handler = get_appending_handler(appendable, ticks_per_second, print_msgs)
+    process_msgs(handler, ticks_per_second=ticks_per_second)
+
+def process_msgs(handler, ticks_per_second=0):
     last_time = timer()
 
     try:
@@ -72,10 +70,12 @@ def accumulate_input(midi_in, appendable, ticks_per_second, print_msgs=True):
                 end = timer()
                 seconds = end - last_time
                 last_time = end
+                msg.time = round(ticks_per_second * seconds)
 
-                handler(msg, seconds)
+                handler(msg)
     except KeyboardInterrupt:
-        print() # Just so the ^C ends up on a separate line from prompt on exit
+        if print_msgs:
+            print() # Just so the "^C" ends up on a separate line from prompt on exit
         pass
 
 
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         accumulate_input(midi_in, track, ticks_per_second, print_msgs)
         mid.save(filename)
 
-        print('MIDI data written to %s', filename)
+        print('MIDI data written to', filename)
     else:
         if print_msgs:
             print_input(midi_in)

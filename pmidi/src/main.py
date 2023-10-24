@@ -54,6 +54,9 @@ if __name__ == '__main__':
     if not midi_out:
         midi_out = get_midi_out()
 
-    play_file(filename, midi_out, print_msgs=print_msgs)
-
     print('Sending to "%s"' % midi_out)
+
+    try:
+        play_file(filename, midi_out, print_msgs=print_msgs)
+    except KeyboardInterrupt:
+        print('')

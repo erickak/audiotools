@@ -1,1 +1,1 @@
-env/bin/pyinstaller --hidden-import mido.backends.rtmidi -n rmidi src/main.py
+env/bin/pyinstaller --hidden-import mido.backends.rtmidi -n pmidi src/main.py
